@@ -1,4 +1,4 @@
-// Tesseract.js voor echte OCR
+// Tesseract.js voor echte OCR + AI leerfunctie
 document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Gebruik Tesseract.js voor echte OCR
             const result = await Tesseract.recognize(
                 file,
-                'nld', // Nederlandse taal
+                'nld+eng', // Nederlandse + Engelse taal
                 {
                     logger: m => {
                         // Update status tijdens OCR
@@ -91,75 +91,121 @@ document.addEventListener('DOMContentLoaded', function() {
         // Categoriseer gevonden items
         const categorizedItems = categorizeItemsFromText(text);
         displayCategories(categorizedItems);
+        
+        // Toon leer-interface voor nieuwe items
+        showLearningInterface(categorizedItems);
     }
 
     function categorizeItemsFromText(text) {
         const items = {};
         
-        // Bekende categorieën (uitbreidbaar)
-        const categories = {
+        // Laad alle categorieën (standaard + geleerd)
+        const allCategories = loadAllCategories();
+        
+        // Zoek naar bekende items in de tekst
+        const lines = text.split('\n');
+        lines.forEach(line => {
+            const cleanLine = line.trim();
+            if (!cleanLine) return;
+            
+            // Zoek naar bekende items EERST
+            Object.keys(allCategories).forEach(item => {
+                if (cleanLine.toLowerCase().includes(item.toLowerCase())) {
+                    items[item] = allCategories[item];
+                }
+            });
+            
+            // Zoek naar mogelijke nieuwe items
+            const potentialItems = extractPotentialItems(cleanLine);
+            potentialItems.forEach(item => {
+                if (item.length > 2 && !allCategories[item] && !items[item]) {
+                    items[item] = 'Te categoriseren';
+                }
+            });
+        });
+
+        return items;
+    }
+
+    function loadAllCategories() {
+        // Standaard categorieën
+        const standardCategories = {
             // Snoep
             'KitKat': 'Snoep', 'Chocolade': 'Snoep', 'Snoep': 'Snoep', 'Drop': 'Snoep',
+            'M&M': 'Snoep', 'Haribo': 'Snoep', 'Toblerone': 'Snoep', 'Lolly': 'Snoep',
             
             // Fruit
             'Bananen': 'Fruit', 'Appels': 'Fruit', 'Peren': 'Fruit', 'Sinaasappels': 'Fruit',
-            'Druiven': 'Fruit', 'Kiwi': 'Fruit', 'Mandarijn': 'Fruit',
+            'Druiven': 'Fruit', 'Kiwi': 'Fruit', 'Mandarijn': 'Fruit', 'Citroen': 'Fruit',
+            'Meloen': 'Fruit', 'Ananas': 'Fruit', 'Bessen': 'Fruit',
             
             // Zuivel
             'Melk': 'Zuivel', 'Kaas': 'Zuivel', 'Yoghurt': 'Zuivel', 'Boter': 'Zuivel',
-            'Room': 'Zuivel', 'Kwark': 'Zuivel',
+            'Room': 'Zuivel', 'Kwark': 'Zuivel', 'Crème': 'Zuivel', 'Joghurt': 'Zuivel',
             
             // Drank
             'Cola': 'Drank', 'Water': 'Drank', 'Sap': 'Drank', 'Koffie': 'Drank',
             'Thee': 'Drank', 'Frisdrank': 'Drank', 'Bier': 'Drank', 'Wijn': 'Drank',
+            'Fanta': 'Drank', 'Sprite': 'Drank', 'Red Bull': 'Drank', 'Energy': 'Drank',
             
             // Bakkerij
             'Brood': 'Bakkerij', 'Croissant': 'Bakkerij', 'Banket': 'Bakkerij',
             'Taart': 'Bakkerij', 'Koek': 'Bakkerij', 'Pannenkoeken': 'Bakkerij',
+            'Baguette': 'Bakkerij', 'Pistolet': 'Bakkerij', 'Worstplank': 'Bakkerij',
             
             // Vleeswaren
             'Worst': 'Vleeswaren', 'Salami': 'Vleeswaren', 'Ham': 'Vleeswaren',
             'Gevogelte': 'Vleeswaren', 'Rundvlees': 'Vleeswaren', 'Varkensvlees': 'Vleeswaren',
+            'Kip': 'Vleeswaren', 'Kalkoen': 'Vleeswaren', 'Spek': 'Vleeswaren',
             
             // Groente
             'Tomaten': 'Groente', 'Komkommer': 'Groente', 'Wortels': 'Groente',
             'Aubergine': 'Groente', 'Paprika': 'Groente', 'Uien': 'Groente',
             'Sla': 'Groente', 'Bloemkool': 'Groente', 'Broccoli': 'Groente',
+            'Spinazie': 'Groente', 'Mais': 'Groente', 'Avocado': 'Groente',
             
             // Droogwaren
             'Rijst': 'Droogwaren', 'Pasta': 'Droogwaren', 'Zout': 'Droogwaren',
             'Peper': 'Droogwaren', 'Kruiden': 'Droogwaren', 'Soep': 'Droogwaren',
+            'Crackers': 'Droogwaren', 'Chips': 'Droogwaren', 'Noten': 'Droogwaren',
             
             // Diepvries
             'IJs': 'Diepvries', 'Gevogelte': 'Diepvries', 'Frites': 'Diepvries',
+            'Vis': 'Diepvries', 'Gehakt': 'Diepvries', 'Pizza': 'Diepvries',
             
             // Huisdier
-            'Hondenvoer': 'Huisdier', 'Kattenvoer': 'Huisdier', 'Voer': 'Huisdier'
+            'Hondenvoer': 'Huisdier', 'Kattenvoer': 'Huisdier', 'Voer': 'Huisdier',
+            'Beau': 'Huisdier', 'Whiskas': 'Huisdier', 'Pedigree': 'Huisdier',
+            
+            // Huishouden
+            'Wasmiddel': 'Huishouden', 'Zeep': 'Huishouden', 'Shampoo': 'Huishouden',
+            'Deodorant': 'Huishouden', 'Tandpasta': 'Huishouden', 'WC-papier': 'Huishouden',
+            'Keukenpapier': 'Huishouden', 'Afwas': 'Huishouden'
         };
+        
+        // Geleerde categorieën uit localStorage
+        const learnedCategories = JSON.parse(localStorage.getItem('learnedCategories') || '{}');
+        
+        // Combineer beide
+        return {...standardCategories, ...learnedCategories};
+    }
 
-        // Zoek naar items in de herkende tekst
-        const lines = text.split('\n');
-        lines.forEach(line => {
-            // Clean up de regel
-            const cleanLine = line.trim();
-            
-            // Zoek naar bekende items in de tekst
-            Object.keys(categories).forEach(item => {
-                if (cleanLine.toLowerCase().includes(item.toLowerCase()) && !items[item]) {
-                    items[item] = categories[item];
-                }
-            });
-            
-            // Probeer ook losse woorden te matchen
-            const words = cleanLine.split(/\s+/);
-            words.forEach(word => {
-                const cleanWord = word.replace(/[^\w\s]/gi, '').trim();
-                if (categories[cleanWord] && !items[cleanWord]) {
-                    items[cleanWord] = categories[cleanWord];
-                }
-            });
+    function extractPotentialItems(line) {
+        const items = [];
+        const words = line.split(/\s+/);
+        
+        // Zoek naar woorden die waarschijnlijk producten zijn
+        words.forEach((word, index) => {
+            const cleanWord = word.replace(/[^\w\s]/gi, '').trim();
+            if (cleanWord.length > 2 && 
+                !/^[€€0-9,\.\-\+\%]+$/.test(cleanWord) && // Geen prijzen
+                !['TOT', 'TOTAAL', 'BTW', 'ITEMS', 'BON', 'BETAALD', 'CONTANT', 'PIN'].includes(cleanWord.toUpperCase()) &&
+                !cleanWord.match(/^[A-Z]{1,2}[0-9]+$/) && // Geen codes als A123
+                cleanWord.length < 20) { // Redelijke lengte
+                items.push(cleanWord);
+            }
         });
-
+        
         return items;
     }
 
@@ -177,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!groupedItems[category]) {
                 groupedItems[category] = [];
             }
-            groupedItems[category].push(item);
+            groupedItems[category].push({item, needsLearning: category === 'Te categoriseren'});
         });
 
         // Toon gegroepeerde items
@@ -188,31 +234,139 @@ document.addEventListener('DOMContentLoaded', function() {
             categoryHeader.style.marginTop = '15px';
             categoriesDiv.appendChild(categoryHeader);
             
-            itemList.forEach(item => {
+            itemList.forEach(({item, needsLearning}) => {
                 const div = document.createElement('div');
                 div.className = 'category-item';
-                div.innerHTML = `<span>${item}</span>`;
+                div.innerHTML = `<span>${item}</span> ${needsLearning ? '<small style="color: orange;">(leer mij!)</small>' : ''}`;
                 categoriesDiv.appendChild(div);
             });
         });
     }
 
+    function showLearningInterface(categorizedItems) {
+        // Verwijder eventuele bestaande leer-sectie
+        const existingLearnSection = document.querySelector('.learning-section');
+        if (existingLearnSection) {
+            existingLearnSection.remove();
+        }
+        
+        // Zoek items die geleerd moeten worden
+        const itemsToLearn = Object.entries(categorizedItems)
+            .filter(([item, category]) => category === 'Te categoriseren')
+            .map(([item]) => item);
+        
+        if (itemsToLearn.length === 0) return;
+
+        // Voeg leer-sectie toe
+        const learnSection = document.createElement('div');
+        learnSection.className = 'learning-section';
+        learnSection.style.marginTop = '30px';
+        learnSection.style.padding = '20px';
+        learnSection.style.background = '#f0f8ff';
+        learnSection.style.borderRadius = '10px';
+        
+        learnSection.innerHTML = `
+            <h3>💡 AI Leertijd!</h3>
+            <p>Help de app slimmer worden door deze nieuwe items te categoriseren:</p>
+            <div id="learnItemsContainer"></div>
+        `;
+        
+        // Voeg toe aan resultaten
+        resultsDiv.appendChild(learnSection);
+        
+        // Vul items in
+        const container = document.getElementById('learnItemsContainer');
+        itemsToLearn.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'learn-item';
+            itemDiv.style.display = 'flex';
+            itemDiv.style.alignItems = 'center';
+            itemDiv.style.gap = '10px';
+            itemDiv.style.margin = '10px 0';
+            itemDiv.innerHTML = `
+                <span style="flex: 1;"><strong>${item}</strong></span>
+                <select data-item="${item}" style="flex: 2; padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                    <option value="">Kies categorie...</option>
+                    <option value="Snoep">🍬 Snoep</option>
+                    <option value="Fruit">🍎 Fruit</option>
+                    <option value="Zuivel">🥛 Zuivel</option>
+                    <option value="Drank">🥤 Drank</option>
+                    <option value="Bakkerij">🍞 Bakkerij</option>
+                    <option value="Vleeswaren">🍖 Vleeswaren</option>
+                    <option value="Groente">🥬 Groente</option>
+                    <option value="Droogwaren">📦 Droogwaren</option>
+                    <option value="Diepvries">❄️ Diepvries</option>
+                    <option value="Huishouden">🏠 Huishouden</option>
+                    <option value="Huisdier">🐾 Huisdier</option>
+                </select>
+                <button onclick="window.saveCategory('${item}', this)" 
+                        style="padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    ✓ Leer
+                </button>
+            `;
+            container.appendChild(itemDiv);
+        });
+    }
+
+    // Globale functie voor opslaan categorieën
+    window.saveCategory = function(item, button) {
+        const select = button.previousElementSibling;
+        const category = select.value;
+        
+        if (!category) {
+            alert('Kies eerst een categorie!');
+            return;
+        }
+        
+        // Sla op in localStorage
+        const learnedCategories = JSON.parse(localStorage.getItem('learnedCategories') || '{}');
+        learnedCategories[item] = category;
+        localStorage.setItem('learnedCategories', JSON.stringify(learnedCategories));
+        
+        // Update weergave
+        button.textContent = '✓ Geleerd!';
+        button.style.background = '#4CAF50';
+        button.disabled = true;
+        
+        // Update categorie in lijst
+        const itemSpans = document.querySelectorAll('.category-item span');
+        itemSpans.forEach(span => {
+            if (span.textContent === item) {
+                const parent = span.parentElement;
+                if (parent.innerHTML.includes('(leer mij!)')) {
+                    parent.innerHTML = parent.innerHTML.replace('(leer mij!)', '');
+                }
+            }
+        });
+        
+        console.log(`AI geleerd: ${item} = ${category}`);
+        alert(`✓ Super! Ik weet nu dat "${item}" bij ${category} hoort.`);
+    };
+
     function exportToCSV() {
         // Haal huidige items op uit de weergave
         const items = {};
-        const itemElements = document.querySelectorAll('.category-item span');
-        itemElements.forEach(span => {
-            const text = span.textContent;
-            if (text && !items[text]) {
-                // Vind de categorie (dit is een simpele aanpak)
-                items[text] = 'Onbekend'; // In echte versie haal je dit uit de data
+        const allCategories = loadAllCategories();
+        
+        // Verzamel items uit de categorie-weergave
+        const categoryHeaders = document.querySelectorAll('#categories h3');
+        categoryHeaders.forEach(header => {
+            const categoryName = header.textContent;
+            const itemsInSection = header.nextElementSibling;
+            while (itemsInSection && itemsInSection.tagName === 'DIV' && itemsInSection.className === 'category-item') {
+                const itemSpan = itemsInSection.querySelector('span');
+                if (itemSpan) {
+                    const itemText = itemSpan.textContent.replace(' (leer mij!)', '');
+                    items[itemText] = categoryName;
+                }
+                itemsInSection = itemsInSection.nextElementSibling;
             }
         });
 
         // Maak CSV content
         let csvContent = "data:text/csv;charset=utf-8," + "Item,Categorie\n";
         Object.entries(items).forEach(([item, category]) => {
-            csvContent += `${item},${category}\n`;
+            csvContent += `"${item}","${category}"\n`;
         });
 
         const encodedUri = encodeURI(csvContent);
@@ -228,6 +382,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.upload-section').style.display = 'flex';
         resultsDiv.style.display = 'none';
         fileInput.value = '';
+        
+        // Verwijder leer-sectie als die er is
+        const learnSection = document.querySelector('.learning-section');
+        if (learnSection) {
+            learnSection.remove();
+        }
     }
 
     function showError(message) {
@@ -237,44 +397,3 @@ document.addEventListener('DOMContentLoaded', function() {
         categoriesDiv.innerHTML = '';
     }
 });
-
-// Categorie database (uitbreidbaar)
-const CATEGORIES = {
-    // Snoep
-    'KitKat': 'Snoep', 'Chocolade': 'Snoep', 'Snoep': 'Snoep', 'Drop': 'Snoep',
-    
-    // Fruit
-    'Bananen': 'Fruit', 'Appels': 'Fruit', 'Peren': 'Fruit', 'Sinaasappels': 'Fruit',
-    'Druiven': 'Fruit', 'Kiwi': 'Fruit', 'Mandarijn': 'Fruit',
-    
-    // Zuivel
-    'Melk': 'Zuivel', 'Kaas': 'Zuivel', 'Yoghurt': 'Zuivel', 'Boter': 'Zuivel',
-    'Room': 'Zuivel', 'Kwark': 'Zuivel',
-    
-    // Drank
-    'Cola': 'Drank', 'Water': 'Drank', 'Sap': 'Drank', 'Koffie': 'Drank',
-    'Thee': 'Drank', 'Frisdrank': 'Drank', 'Bier': 'Drank', 'Wijn': 'Drank',
-    
-    // Bakkerij
-    'Brood': 'Bakkerij', 'Croissant': 'Bakkerij', 'Banket': 'Bakkerij',
-    'Taart': 'Bakkerij', 'Koek': 'Bakkerij', 'Pannenkoeken': 'Bakkerij',
-    
-    // Vleeswaren
-    'Worst': 'Vleeswaren', 'Salami': 'Vleeswaren', 'Ham': 'Vleeswaren',
-    'Gevogelte': 'Vleeswaren', 'Rundvlees': 'Vleeswaren', 'Varkensvlees': 'Vleeswaren',
-    
-    // Groente
-    'Tomaten': 'Groente', 'Komkommer': 'Groente', 'Wortels': 'Groente',
-    'Aubergine': 'Groente', 'Paprika': 'Groente', 'Uien': 'Groente',
-    'Sla': 'Groente', 'Bloemkool': 'Groente', 'Broccoli': 'Groente',
-    
-    // Droogwaren
-    'Rijst': 'Droogwaren', 'Pasta': 'Droogwaren', 'Zout': 'Droogwaren',
-    'Peper': 'Droogwaren', 'Kruiden': 'Droogwaren', 'Soep': 'Droogwaren',
-    
-    // Diepvries
-    'IJs': 'Diepvries', 'Gevogelte': 'Diepvries', 'Frites': 'Diepvries',
-    
-    // Huisdier
-    'Hondenvoer': 'Huisdier', 'Kattenvoer': 'Huisdier', 'Voer': 'Huisdier'
-};
